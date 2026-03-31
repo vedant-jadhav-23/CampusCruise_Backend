@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 
 const router = express.Router();
 
-// 📄 Schema
+// Schema
 const vehicleSchema = new mongoose.Schema({
   vehicle_id: { type: String, unique: true },
   lat: Number,
@@ -17,28 +17,33 @@ const vehicleSchema = new mongoose.Schema({
 
 const Vehicle = mongoose.model("Vehicle", vehicleSchema);
 
-// 🌐 API
+// API
 router.get("/live", async (req, res) => {
-  const vehicles = await Vehicle.find();
+  try {
+    const vehicles = await Vehicle.find().lean(); // lean() apparently improves performance by removing mongoose overhead
 
-  const now = new Date();
+    const now = new Date();
 
-  const result = vehicles.map(v => {
-    const diff = (now - v.lastUpdated) / 1000;
+    const result = vehicles.map(v => {
+      const diff = (now - v.lastUpdated) / 1000;
 
-    let status = "online";
-    if (diff > 30) status = "offline";
+      let status = "online";
+      const OFFLINE_THRESHOLD = 30;
+      if (diff > OFFLINE_THRESHOLD) status = "offline";
 
-    return {
-      vehicle_id: v.vehicle_id,
-      lat: v.lat,
-      lon: v.lon,
-      status,
-      lastUpdated: v.lastUpdated
-    };
-  });
+      return {
+        vehicle_id: v.vehicle_id,
+        lat: v.lat,
+        lon: v.lon,
+        status,
+        lastUpdated: v.lastUpdated
+      };
+    });
 
-  res.json(result);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching vehicles" })
+  }
 });
 
 module.exports = { router, Vehicle };

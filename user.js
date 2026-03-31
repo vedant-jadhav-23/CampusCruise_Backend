@@ -7,20 +7,29 @@ const mongoose = require("mongoose");
 
 // User schema
 const userSchema = new mongoose.Schema({
-  email: { type: String, unique: true },
-  password: String
+  email: { type: String, unique: true, lowercase: true },
+  password: String,
+  role: {type: String, enum: ["student", "driver"], required:true},
+  vehicle_id: { type: String, unique: true, sparse: true }
 });
 
 const User = mongoose.model("User", userSchema);
 
 // Signup
 router.post("/signup", async (req, res) => {
-  const { email, password } = req.body;
+  let { email, password, role, vehicle_id } = req.body;
 
   try {
-    if (!email || !password) {
+    if (!email || !password || !role) {
       return res.status(400).json({ message: "All fields required" });
     }
+
+    email = email.trim().toLowerCase();
+
+    if (role === "driver" && !vehicle_id) { //checks that driver has entered vehicle_id
+      return res.status(400).json({ message: "Vehicle ID required for driver" });
+    }
+
     const existing = await User.findOne({ email });
     if (existing) {
       return res.status(400).json({ message: "User already exists" });
@@ -30,7 +39,9 @@ router.post("/signup", async (req, res) => {
 
     const user = new User({
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      role,
+      vehicle_id: role === "driver" ? vehicle_id : undefined
     });
 
     await user.save();
@@ -44,12 +55,14 @@ router.post("/signup", async (req, res) => {
 
 // Login
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+  let { email, password } = req.body;
 
   try {
     if (!email || !password) {
       return res.status(400).json({ message: "All fields required" });
     }
+
+    email = email.toLowerCase().trim();
 
     const user = await User.findOne({ email });
     
@@ -64,7 +77,7 @@ router.post("/login", async (req, res) => {
     }
 
     const token = jwt.sign(
-      { userId: user._id },
+      { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
@@ -76,4 +89,4 @@ router.post("/login", async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = {router, User};
