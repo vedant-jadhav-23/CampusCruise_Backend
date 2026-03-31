@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const { User } = require("./user");
 
-const mqtt = require("mqtt")
+const mqtt = require("mqtt");
 const { Vehicle } = require("./vehicle");
 
 const client = mqtt.connect("mqtt://test.mosquitto.org");
