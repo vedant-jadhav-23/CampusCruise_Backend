@@ -11,7 +11,7 @@ const app = express();
 app.use(express.json());
 
 // Routes
-app.use("/user", userRoutes);
+app.use("/user", userRoutes.router);
 app.use("/vehicle", vehicleRoutes);
 app.use("/booking", bookingRoutes);
 
