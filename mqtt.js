@@ -7,8 +7,8 @@ const { Vehicle } = require("./vehicle");
 const client = mqtt.connect("mqtt://test.mosquitto.org");
 
 client.on("connect", () => {
-    console.log("Connected to MQTT");
-    client.subscribe("rickshaw/+/location");
+  console.log("Connected to MQTT");
+  client.subscribe("rickshaw/+/location");
 });
 
 // Receive + Save
@@ -57,21 +57,19 @@ client.on("message", async (topic, message) => {
     if (existing && existing.timestamp > data.timestamp) {
       return;
     }
-
     // Save data
-    const {token, ...safeData} = data; // removing token before saving to DB
+    const { token, ...safeData } = data; // removing token before saving to DB
 
     await Vehicle.findOneAndUpdate(
       { vehicle_id: data.vehicle_id },
       {
         ...safeData,
-        lastUpdated: new Date()
+        lastUpdated: new Date(),
       },
-      { upsert: true }
+      { upsert: true },
     );
 
-    console.log("Saved:", data.vehicle_id);
-
+    // console.log("Saved:", data.vehicle_id);
   } catch (err) {
     console.log("MQTT ERROR:", err.message);
   }

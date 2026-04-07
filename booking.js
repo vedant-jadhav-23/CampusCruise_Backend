@@ -3,7 +3,6 @@ const express = require("express");
 const router = express.Router();
 const { User } = require("./user");
 
-
 //to restrict access for different types of users
 const auth = require("./middleware/auth");
 const allowRoles = require("./middleware/role");
@@ -11,18 +10,19 @@ const allowRoles = require("./middleware/role");
 //Booking schema
 const bookingSchema = new mongoose.Schema({
     studentId: String,
-    driverId: String,   // null until accepted
+    studentName: String,
+    driverId: String, // null until accepted
     status: {
         type: String,
         enum: ["pending", "accepted", "rejected"],
-        default: "pending"
+        default: "pending",
     },
     pickupLat: Number,
     pickupLon: Number,
     createdAt: {
         type: Date,
-        default: Date.now
-    }
+        default: Date.now,
+    },
 });
 
 const Booking = mongoose.model("Booking", bookingSchema);
@@ -41,17 +41,22 @@ router.post("/create", auth, allowRoles("student"), async (req, res) => {
     try {
         const existing = await Booking.findOne({
             studentId,
-            status: { $in: ["pending", "accepted"] }
+            status: { $in: ["pending", "accepted"] },
         });
 
         if (existing) {
-            return res.status(400).json({ message: "You already have an active booking" });
+            return res
+                .status(400)
+                .json({ message: "You already have an active booking" });
         }
 
+        const user = await User.findById(studentId)
+        
         const booking = new Booking({
             studentId,
+            studentName: user.name,
             pickupLat,
-            pickupLon
+            pickupLon,
         });
 
         await booking.save();
@@ -69,7 +74,7 @@ router.get("/my", auth, allowRoles("student"), async (req, res) => {
     try {
         const booking = await Booking.findOne({
             studentId,
-            status: "accepted"
+            status: "accepted",
         });
 
         if (!booking) {
@@ -83,7 +88,7 @@ router.get("/my", auth, allowRoles("student"), async (req, res) => {
         }
 
         res.json({
-            vehicle_id: driver.vehicle_id
+            vehicle_id: driver.vehicle_id,
         });
     } catch (err) {
         res.status(500).json({ message: "Server error" });
@@ -97,8 +102,7 @@ router.get("/pending", auth, allowRoles("driver"), async (req, res) => {
     try {
         const bookings = await Booking.find({ status: "pending" });
         res.json(bookings);
-    }
-    catch (err) {
+    } catch (err) {
         res.status(500).json({ message: "Server error" });
     }
 });
@@ -112,11 +116,13 @@ router.post("/accept", auth, allowRoles("driver"), async (req, res) => {
         const booking = await Booking.findOneAndUpdate(
             { _id: bookingId, status: "pending" },
             { status: "accepted", driverId },
-            { new: true }
+            { new: true },
         );
 
         if (!booking) {
-            return res.status(400).json({ message: "Already taken or invalid" });
+            return res
+                .status(400)
+                .json({ message: "Already taken or invalid" });
         }
 
         res.json({ message: "Booking accepted", booking });
@@ -144,9 +150,26 @@ router.post("/reject", auth, allowRoles("driver"), async (req, res) => {
     }
 });
 
+// END RIDE
+router.post("/complete", auth, allowRoles("student"), async (req, res) => {
+    const studentId = req.user.userId;
+
+    try {
+        const booking = await Booking.findOneAndUpdate(
+            { studentId, status: "accepted" },
+            { status: "completed" },
+            { new: true }
+        );
+
+        if (!booking) {
+            return res.status(400).json({ message: "No active ride" });
+        }
+
+        res.json({ message: "Ride completed" });
+
+    } catch (err) {
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 module.exports = router;
-
-
-
-
-
